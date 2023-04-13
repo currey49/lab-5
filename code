@@ -1,0 +1,90 @@
+#include <msp430.h> 
+/**
+ * main.c
+ */
+void gpioInit();        // Setup the GPIO Pins for controlling the LEDS through PWM (no input arguments)
+void timerInit();       // Setup Timer to control the LEDS (no input arguments)
+void adcInit();         // Setup ADC to do single, on demand samples (no input arguments)
+int readADCSingle();    // Single Read ADC, no input arguments, returns current ADC reading
+void setLEDBrightness(int DutyCycle);   // Takes in a duty cycle from 0-100 and converts it to an appropriate CCR value
+#include <msp430.h> 
+/**
+ * main.c
+ */
+void gpioInit();        // Setup the GPIO Pins for controlling the LEDS through PWM (no input arguments)
+void timerInit();       // Setup Timer to control the LEDS (no input arguments)
+void adcInit();         // Setup ADC to do single, on demand samples (no input arguments)
+int readADCSingle();    // Single Read ADC, no input arguments, returns current ADC reading
+int main(void)
+{
+WDTCTL = WDTPW | WDTHOLD; // stop watchdog timer
+
+gpioInit();
+adcInit();
+timerInit();
+
+while(1){
+    value= readADCSingle();
+    ADC_DutyCycle= (int) value/40.96;
+    setLEDBrightness(ADC_DutyCycle);
+ }
+}
+/**
+ * GPIO INIT
+ * Initialize all GPIO Pins. Current Pin configuration:
+ * Pin 1.0: OUTPUT, GPIO
+ * Pin 1.1: INPUT,  ADC Channel 1
+ */
+void gpioInit(){
+    // Configure GPIO Pin
+    // Configure ADC Pin
+    P1SEL0 |=BIT1;
+    P1SEL1 |=BIT1;
+    P6SEL0 |=BIT0;
+    P6SEL1 &=~BIT0;
+    P6DIR |= BIT0;
+}
+/**
+ * Timer INIT
+ * Initialize the Timer Peripheral to control a GPIO Pin with PWM in up mode
+ * Timer Mode: Up Mode
+ */
+void timerInit(){
+    // Configure Timer Module to Up Mode
+    // Configure CCR Registers
+   TB0CCR0 = 1000-1; // PWM Period
+    TB0CCTL1 = OUTMOD_7; // CCR1 reset/set
+    TB0CCR1 = 250; // CCR1 PWM duty cycle
+    TB0CTL = TBSSEL__SMCLK | MC__UP | TBCLR; // SMCLK, up mode, clear TBR
+}
+/**
+ * ADC INIT
+ * Initialize the ADC Peripheral to read Single measurements on demand.
+ * ADC MODE: Single Sample, Single Conversion
+ */
+void adcInit(){
+    ADCCTL0 |= ADCSHT_8 | ADCON; // ADC ON,temperature sample period>30us
+    ADCCTL1 |= ADCSHP|ADCCONSEQ_2;//|ADCSSEL_2; // s/w trig, singlech/conv, MODOSC(5MHz)
+    ADCCTL2 &= ~ADCRES; // clear ADCRES in ADCCTL
+    ADCCTL2 |= ADCRES_2|ADCSR; // 12-bit conversion results
+    ADCMCTL0 |= ADCINCH_1; // ADC input ch A12 => temp sense
+}
+/**
+ * Read Single ADC Sample from Channel 0 of the ADC12 Peripheral
+ * Returns an ADC Sample without interrupts.
+ */
+int readADCSingle(){
+    ADCCTL0 |=ADCENC | ADCSC; //Enable and start conversion
+    // while ((ADCIFG &ADCIFG0)==0);
+    while (!(ADCIFG & ADCIFG0)); // Wait for sample to be sampled and converted
+    return ADCMEM0;
+}
+/**
+ * Set LED Brightness on the LED configured from gpioInit. This modifies the
+ * CCR register based on the input.
+ * int DutyCycle: Value between 0-100
+ */
+void setLEDBrightness(int DutyCycle)
+{
+	TB0CCR1=(int) DutyCycle*9.9;
+}
