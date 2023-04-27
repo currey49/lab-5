@@ -2,7 +2,11 @@
 
 MATTHEW CURREY
 3/23/2023
+
+
 Lab 5:
+
+
 Please fill in the blanks in the following code. Please see me or use the TI resource explorer along with the data sheet and user manual for for help.
 /**********************************
  * ADC Controlled LED
